@@ -3,7 +3,7 @@ package jforex;
 import com.dukascopy.api.*;
 import java.util.*;
 
-public class FractalScalpingStrategy2 implements IStrategy {
+public class FractalScalpingStrategy implements IStrategy {
     private IEngine engine;
     private IConsole console;
     private IHistory history;
@@ -55,10 +55,14 @@ public class FractalScalpingStrategy2 implements IStrategy {
     public int price_condition = 1;       
     @Configurable("hammer_condition:")
     public int hammer_condition = 1;       
-    @Configurable("hammer_perc:")
+    //@Configurable("hammer_perc:")
     public double hammer_perc = 0.8;       
     @Configurable("sar_condition:")
     public int sar_condition = 1;       
+    @Configurable("bollinger_condition:")
+    public int bollinger_condition = 1;       
+    @Configurable("adx_condition:")
+    public int adx_condition = 1;       
    
     
     public void onStart(IContext context) throws JFException {
@@ -96,6 +100,12 @@ public class FractalScalpingStrategy2 implements IStrategy {
         double ema12 = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 12, 0);   
         double ema34 = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 34, 0);
 
+        double ema10 = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 10, 0);   
+        double ema25 = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 25, 0);   
+        double ema50 = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 50, 0);
+        double ema100 = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 100, 0);   
+        double ema200 = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 200, 0);   
+
         double ema6_y = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 6, 1);   
         double ema12_y = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 12, 1);   
         double ema34_y = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 34, 1);
@@ -112,13 +122,36 @@ public class FractalScalpingStrategy2 implements IStrategy {
         double [] fractals = indicators.fractalLines(instrument, period, OfferSide.BID, 5, 0);
         double [] fractals_y = indicators.fractalLines(instrument, period, OfferSide.BID, 5, 1);
         
-        double rsi = indicators.rsi(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 14, 0);        
-        IBar bar = history.getBar(selectedInstrument, selectedPeriod, OfferSide.BID, 0);
-        IBar bar_y = history.getBar(selectedInstrument, selectedPeriod, OfferSide.BID, 1);
-
-        boolean goLong = long_bool == 1 && adx > 20;
-        boolean goShort = short_bool == 1 && adx > 20;
+        Object[] indicatorResult = indicators.calculateIndicator(selectedInstrument, selectedPeriod, new OfferSide[] {OfferSide.BID},
+                "BBANDS", new IIndicators.AppliedPrice[] {IIndicators.AppliedPrice.CLOSE}, new Object[] {20, 2.0, 2.0, 0}, Filter.WEEKENDS, 1, time, 0);
+        double bollingerUpperValue = ((double[]) indicatorResult[0])[0];
+        double bollingerMiddleValue = ((double[]) indicatorResult[1])[0];
+        double bollingerLowerValue = ((double[]) indicatorResult[2])[0];        
         
+        
+        double rsi = indicators.rsi(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 14, 0);        
+        IBar bar = history.getBar(selectedInstrument, selectedPeriod, OfferSide.BID, 1);
+        IBar bar_y = history.getBar(selectedInstrument, selectedPeriod, OfferSide.BID, 2);
+
+        boolean goLong = long_bool == 1;
+        boolean goShort = short_bool == 1;
+        
+        if(adx_condition == 1)
+        {
+            goLong = goLong && adx > 20;
+            goShort = goShort && adx > 20;
+        }
+
+        if(bollinger_condition == 1)
+        {
+            double candleLow = bar.getOpen() > bar.getClose() ? bar.getClose() : bar.getOpen();
+            double candleHigh = bar.getOpen() < bar.getClose() ? bar.getClose() : bar.getOpen();
+            
+            goLong = goLong && candleLow > bollingerMiddleValue && candleHigh < bollingerUpperValue;
+            goShort = goShort && candleLow > bollingerLowerValue && candleHigh < bollingerMiddleValue;
+        }
+                        
+                                        
         if(sar_condition == 1)
         {
             goLong = goLong && bar.getLow() > sar;
@@ -130,8 +163,8 @@ public class FractalScalpingStrategy2 implements IStrategy {
             //goLong = goLong && bar_y.getClose() >= bar_y.getLow() + (bar_y.getHigh()-bar_y.getLow()) * hammer_condition;
             //goShort = goShort && bar_y.getClose() <= bar_y.getLow() + (bar_y.getHigh()-bar_y.getLow()) * (1.0-hammer_condition);
 
-            goLong = goLong && bar_y.getClose() == bar_y.getHigh();
-            goShort = goShort && bar_y.getClose() == bar_y.getLow();
+            goLong = goLong && (bar_y.getClose() == bar_y.getHigh() || bar.getLow() == bar.getOpen());
+            goShort = goShort && (bar_y.getClose() == bar_y.getLow() || bar.getHigh() == bar.getOpen());
 
             //console.getOut().println("Prices - today: " + bar_y.getClose() + " High: " + bar_y.getHigh() + " Low: " + bar_y.getLow() + " Diff: " + (bar_y.getHigh()-bar_y.getLow()) + " Long: " + bar_y.getLow() + (bar_y.getHigh()-bar_y.getLow()) * (hammer_condition));
         
@@ -192,6 +225,30 @@ public class FractalScalpingStrategy2 implements IStrategy {
         {
             goLong = goLong && ema6 > ema12 && ema12 > ema34 && !(ema6_y > ema12_y && ema12_y > ema34_y);
             goShort = goShort && ema6 < ema12 && ema12 < ema34 && !(ema6_y < ema12_y && ema12_y < ema34_y);
+        }else if(ema_condition == 3)
+        {
+            goLong = goLong && ema6 > ema12 && ema12 > ema34 && bar.getClose() > ema6;
+            goShort = goShort && ema6 < ema12 && ema12 < ema34 && bar.getClose() < ema6;
+        }else if(ema_condition == 4)
+        {
+            goLong = goLong && bar.getClose() > ema10 && bar_y.getClose() < ema10;
+            goShort = goShort && bar.getClose() < ema10 && bar_y.getClose() > ema10;
+        }else if(ema_condition == 5)
+        {
+            goLong = goLong && bar.getClose() > ema25 && bar_y.getClose() < ema25;
+            goShort = goShort && bar.getClose() < ema25 && bar_y.getClose() > ema25;
+        }else if(ema_condition == 6)
+        {
+            goLong = goLong && bar.getClose() > ema50 && bar_y.getClose() < ema50;
+            goShort = goShort && bar.getClose() < ema50 && bar_y.getClose() > ema50;
+        }else if(ema_condition == 7)
+        {
+            goLong = goLong && bar.getClose() > ema100 && bar_y.getClose() < ema100;
+            goShort = goShort && bar.getClose() < ema100 && bar_y.getClose() > ema100;
+        }else if(ema_condition == 8)
+        {
+            goLong = goLong && bar.getClose() > ema200 && bar_y.getClose() < ema200;
+            goShort = goShort && bar.getClose() < ema200 && bar_y.getClose() > ema200;
         }
         
         if(fractal_condition == 1)
@@ -216,6 +273,12 @@ public class FractalScalpingStrategy2 implements IStrategy {
             
         if(goLong)
         {
+                for (IOrder order : engine.getOrders(selectedInstrument)) {
+                    if (order.getState() == IOrder.State.OPENED && !order.isLong()) {
+                        order.close();
+                    }
+                }            
+                 
                  ITick lastTick = history.getLastTick(instrument);
                  double price = lastTick.getAsk();
                  double sl = fractals[1];
@@ -250,6 +313,13 @@ public class FractalScalpingStrategy2 implements IStrategy {
             
         }else if(goShort)
         {
+            
+                for (IOrder order : engine.getOrders(selectedInstrument)) {
+                    if (order.getState() == IOrder.State.OPENED && order.isLong()) {
+                        order.close();
+                    }
+                }            
+            
                  ITick lastTick = history.getLastTick(instrument);
                  double price = lastTick.getAsk();
                  double sl = fractals[0];
