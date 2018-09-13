@@ -33,20 +33,6 @@
               <entry key="value" value="15 Mins"/>
             </map>
           </node>
-          <node name="parameter@stopLossPips">
-            <map>
-              <entry key="id" value="stopLossPips"/>
-              <entry key="type" value="int"/>
-              <entry key="value" value="25"/>
-            </map>
-          </node>
-          <node name="parameter@takeProfitPips">
-            <map>
-              <entry key="id" value="takeProfitPips"/>
-              <entry key="type" value="int"/>
-              <entry key="value" value="50"/>
-            </map>
-          </node>
         </node>
       </node>
     </node>
