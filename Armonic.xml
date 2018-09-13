@@ -26,18 +26,11 @@
               <entry key="value" value="3"/>
             </map>
           </node>
-          <node name="parameter@selectedInstrument">
-            <map>
-              <entry key="id" value="selectedInstrument"/>
-              <entry key="type" value="com.dukascopy.api.Instrument"/>
-              <entry key="value" value="EUR/USD"/>
-            </map>
-          </node>
           <node name="parameter@selectedPeriod">
             <map>
               <entry key="id" value="selectedPeriod"/>
               <entry key="type" value="com.dukascopy.api.Period"/>
-              <entry key="value" value="Daily"/>
+              <entry key="value" value="15 Mins"/>
             </map>
           </node>
           <node name="parameter@stopLossPips">
