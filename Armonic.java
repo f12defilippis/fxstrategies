@@ -16,7 +16,7 @@ public class Armonic implements IStrategy {
 //    @Configurable("selectedInstrument:")
 //    public Instrument selectedInstrument = Instrument.EURUSD;
     @Configurable("selectedPeriod:")
-    public Period selectedPeriod = Period.TEN_MINS;
+    public Period selectedPeriod = Period.ONE_HOUR;
     //@Configurable("stopLossPips:")
     public int stopLossPips = 25;
     //@Configurable("takeProfitPips:")
@@ -31,7 +31,7 @@ public class Armonic implements IStrategy {
     public double risk_profile = 1d;
 
     @Configurable("rsi_condition:")
-    public int rsi_condition = 1;
+    public int rsi_condition = 0;
 
 
     private boolean lowCross = false;
@@ -77,19 +77,16 @@ public class Armonic implements IStrategy {
 
     public void onTick(Instrument instrument, ITick tick) throws JFException {
         
-        
-                        
-        
-    }
-    
-    public void onBar(Instrument instrument, Period period, IBar askBar, IBar bidBar) throws JFException {
 
-        if (!period.equals(selectedPeriod)) {
-            return;
-        }        
+        IBar bidBar = history.getBar(instrument, Period.ONE_MIN, OfferSide.BID, 0);
+        IBar askBar = history.getBar(instrument, Period.ONE_MIN, OfferSide.ASK, 0);
+
+        IOrder orderToChange = null;
+
+        boolean b_orderToChange = true;
 
         for (IOrder order : engine.getOrders(instrument)) {
-            if (order.getState() == IOrder.State.FILLED) {
+            if (order.getState() == IOrder.State.CREATED || order.getState() == IOrder.State.OPENED) {
                 double min = bidBar.getClose() < askBar.getClose() ? bidBar.getClose() : askBar.getClose();
                 double max = bidBar.getClose() > askBar.getClose() ? bidBar.getClose() : askBar.getClose();
                 if(min < threshold_min[instrument.ordinal()] && order.isLong())
@@ -103,7 +100,34 @@ public class Armonic implements IStrategy {
                     console.getOut().println("Closing Order Short at price " + max);
                 }
             }
-        }            
+          /*  if (order.getState() == IOrder.State.OPENED || order.getState() == IOrder.State.FILLED) {
+                if(order.getLabel().substring(order.getLabel().length()-1).equals("2"))
+                {
+                    orderToChange = order;
+                }
+                if(order.getLabel().substring(order.getLabel().length()-1).equals("1"))
+                {
+                    b_orderToChange = false;
+                }
+            }*/
+        }          
+/*
+        if(b_orderToChange && orderToChange!=null && orderToChange.getStopLossPrice() != orderToChange.getOpenPrice())
+        {
+            console.getOut().println("Changing stoploss at " + orderToChange.getOpenPrice() + " Order " + orderToChange.getLabel());
+            orderToChange.setStopLossPrice(orderToChange.getOpenPrice());                                                            
+        }
+*/                                                                        
+                                                                                                                        
+        
+    }
+    
+    public void onBar(Instrument instrument, Period period, IBar askBar, IBar bidBar) throws JFException {
+
+        if (!period.equals(selectedPeriod)) {
+            return;
+        }        
+          
                 
         double rsi = indicators.rsi(instrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 14, 0);        
                                                  
@@ -265,25 +289,24 @@ public class Armonic implements IStrategy {
                                                 }
                                             }                                              
                                             
-                                            //double stopLoss = bidBar.getClose() - selectedInstrument.getPipValue() * stopLossPips;
-                                            //double takeProfit = bidBar.getClose() + selectedInstrument.getPipValue() * takeProfitPips;
 
                                             int tpFactor = (int)(((a_bar.getHigh() - bidBar.getLow()) * 0.618) / instrument.getPipValue());
+                                            int tpFactor2 = (int)(((a_bar.getHigh() - bidBar.getLow()) * 0.382) / instrument.getPipValue());
                                             int slFactor = (int)(((a_bar.getHigh() - bidBar.getLow()) * 1.13) / instrument.getPipValue());
                                             int entryFactor = (int)(((a_bar.getHigh() - x_bar.getLow()) * adax_min) / instrument.getPipValue());
 
                                             double takeProfit = a_bar.getHigh() - instrument.getPipValue() * tpFactor;
+                                            double takeProfit2 = a_bar.getHigh() - instrument.getPipValue() * tpFactor2;
                                             double stopLoss = a_bar.getHigh() - instrument.getPipValue() * slFactor;
                                             double entryPrice = a_bar.getHigh() - instrument.getPipValue() * entryFactor;
                                             
                                              double piprisk = (entryPrice-stopLoss) / instrument.getPipValue();
                                             double stdLotPipValue = 10;
                                             
- //                                           double quantity = (double)(Math.round(howCanIRiskPerTransaction / (piprisk * stdLotPipValue) * 100000d)) / 100000d;
                                             double quantity = getLot(entryPrice,stopLoss);
                                                                                   
                                                                                                                 
-                                            engine.submitOrder(patternName, instrument, IEngine.OrderCommand.BUYSTOP, quantity, entryPrice, 0, stopLoss, takeProfit, 0, "");                                                                                       
+                                            engine.submitOrder(patternName + "1", instrument, IEngine.OrderCommand.BUYSTOP, quantity, entryPrice, 0, stopLoss, takeProfit, 0, "");                                                                                       
                                             
                                             console.getOut().println("Order Submitted - " + patternName + " Qty: " + quantity + " Piprisk: " + piprisk + " PRICE: " + bidBar.getClose() + " EP: " + entryPrice + " SL: " + stopLoss + " TP: " + takeProfit + " Exit: " + d_threshold_min);
                                                                                                                                                                                                 
@@ -451,10 +474,12 @@ public class Armonic implements IStrategy {
                                             //double takeProfit = bidBar.getClose() + selectedInstrument.getPipValue() * takeProfitPips;
 
                                             int tpFactor = (int)(((bidBar.getHigh()-a_bar.getLow()) * 0.618) / instrument.getPipValue());
+                                            int tpFactor2 = (int)(((bidBar.getHigh()-a_bar.getLow()) * 0.382) / instrument.getPipValue());
                                             int slFactor = (int)(((x_bar.getHigh()-a_bar.getLow()) * 1.13) / instrument.getPipValue());
                                             int entryFactor = (int)(((x_bar.getHigh()-a_bar.getLow()) * adax_min) / instrument.getPipValue());
 
                                             double takeProfit = a_bar.getLow() + instrument.getPipValue() * tpFactor;
+                                            double takeProfit2 = a_bar.getLow() + instrument.getPipValue() * tpFactor2;
                                             double stopLoss = a_bar.getLow() + instrument.getPipValue() * slFactor;
                                             double entryPrice = a_bar.getLow() + instrument.getPipValue() * entryFactor;
 
@@ -465,7 +490,8 @@ public class Armonic implements IStrategy {
                                             double quantity = getLot(entryPrice,stopLoss);
                                                                                     
                                                                                                                 
-                                            engine.submitOrder(patternName, instrument, IEngine.OrderCommand.SELLSTOP, quantity, entryPrice, 0, stopLoss, takeProfit, 0, "");                                                                                       
+                                            engine.submitOrder(patternName + "1", instrument, IEngine.OrderCommand.SELLSTOP, quantity, entryPrice, 0, stopLoss, takeProfit, 0, "");                                                                                       
+                                            //engine.submitOrder(patternName + "2", instrument, IEngine.OrderCommand.SELLSTOP, quantity/2.0, entryPrice, 0, stopLoss, takeProfit2, 0, "");                                                                                       
                                             
                                             console.getOut().println("Order Submitted - " + patternName + " Qty: " + quantity + " PipRisk: " + piprisk + " PRICE: " + bidBar.getHigh() + " EP: " + entryPrice + " SL: " + stopLoss + " TP: " + takeProfit + " Exit: " + d_threshold_max);
                                                                                                                                                                                                 
@@ -505,6 +531,9 @@ public class Armonic implements IStrategy {
 
         double diff = price > stoploss ? price - stoploss : stoploss - price;
 
+        equity = context.getAccount().getEquity();
+        
+        howCanIRiskPerTransaction = equity * risk_profile / 100d;
 
 
         lotSize = howCanIRiskPerTransaction / diff;

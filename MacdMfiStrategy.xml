@@ -12,39 +12,46 @@
             <entry key="name" value="Custom Preset"/>
             <entry key="id" value="Custom Preset"/>
           </map>
-          <node name="parameter@maxPeriod">
+          <node name="parameter@entryPips">
             <map>
-              <entry key="id" value="maxPeriod"/>
+              <entry key="id" value="entryPips"/>
               <entry key="type" value="int"/>
-              <entry key="value" value="100"/>
-            </map>
-          </node>
-          <node name="parameter@minPeriod">
-            <map>
-              <entry key="id" value="minPeriod"/>
-              <entry key="type" value="int"/>
-              <entry key="value" value="3"/>
+              <entry key="value" value="5"/>
             </map>
           </node>
           <node name="parameter@risk_profile">
             <map>
               <entry key="id" value="risk_profile"/>
               <entry key="type" value="double"/>
-              <entry key="value" value="1.0"/>
+              <entry key="value" value="0.5"/>
             </map>
           </node>
-          <node name="parameter@rsi_condition">
+          <node name="parameter@selectedInstrument">
             <map>
-              <entry key="id" value="rsi_condition"/>
-              <entry key="type" value="int"/>
-              <entry key="value" value="0"/>
+              <entry key="id" value="selectedInstrument"/>
+              <entry key="type" value="com.dukascopy.api.Instrument"/>
+              <entry key="value" value="EUR/USD"/>
             </map>
           </node>
           <node name="parameter@selectedPeriod">
             <map>
               <entry key="id" value="selectedPeriod"/>
               <entry key="type" value="com.dukascopy.api.Period"/>
-              <entry key="value" value="Hourly"/>
+              <entry key="value" value="5 Mins"/>
+            </map>
+          </node>
+          <node name="parameter@stopLossPips">
+            <map>
+              <entry key="id" value="stopLossPips"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="10"/>
+            </map>
+          </node>
+          <node name="parameter@takeProfitPips">
+            <map>
+              <entry key="id" value="takeProfitPips"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="10"/>
             </map>
           </node>
         </node>

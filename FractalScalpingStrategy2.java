@@ -3,7 +3,7 @@ package jforex;
 import com.dukascopy.api.*;
 import java.util.*;
 
-public class FractalScalpingStrategy implements IStrategy {
+public class FractalScalpingStrategy2 implements IStrategy {
     private IEngine engine;
     private IConsole console;
     private IHistory history;
@@ -18,7 +18,7 @@ public class FractalScalpingStrategy implements IStrategy {
     //@Configurable("equity:")
     public double equity = 5000;
     @Configurable("risk_profile:")
-    public double risk_profile = 0.5;
+    public double risk_profile = 1.0;
     //@Configurable("leverage:")
     public double leverage = 30;
     @Configurable("entryPips:")
@@ -26,7 +26,7 @@ public class FractalScalpingStrategy implements IStrategy {
     @Configurable("stopLossPips:")
     public int stopLossPips = 0;
     @Configurable("takeProfitPips:")
-    public int takeProfitPips = 10;    
+    public int takeProfitPips = 20;    
     //@Configurable("candlesToWait:")
     public int candlesToWait = 1;    
     //@Configurable("rsilow_min:")
@@ -46,15 +46,15 @@ public class FractalScalpingStrategy implements IStrategy {
     @Configurable("fractal_condition:")
     public int fractal_condition = 1;       
     @Configurable("rsi_condition:")
-    public int rsi_condition = 2;  
+    public int rsi_condition = 0;  
     @Configurable("macd_condition:")
-    public int macd_condition = 1;       
+    public int macd_condition = 0;       
     @Configurable("candle_condition:")
-    public int candle_condition = 2;       
+    public int candle_condition = 1;       
     @Configurable("price_condition:")
-    public int price_condition = 1;       
+    public int price_condition = 0;       
     @Configurable("hammer_condition:")
-    public int hammer_condition = 1;       
+    public int hammer_condition = 0;       
     //@Configurable("hammer_perc:")
     public double hammer_perc = 0.8;       
     @Configurable("sar_condition:")
@@ -63,6 +63,8 @@ public class FractalScalpingStrategy implements IStrategy {
     public int bollinger_condition = 1;       
     @Configurable("adx_condition:")
     public int adx_condition = 1;       
+    @Configurable("candlestick_condition:")
+    public int candlestick_condition = 0;       
    
     
     public void onStart(IContext context) throws JFException {
@@ -132,9 +134,13 @@ public class FractalScalpingStrategy implements IStrategy {
         double rsi = indicators.rsi(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 14, 0);        
         IBar bar = history.getBar(selectedInstrument, selectedPeriod, OfferSide.BID, 1);
         IBar bar_y = history.getBar(selectedInstrument, selectedPeriod, OfferSide.BID, 2);
+        IBar bar_2y = history.getBar(selectedInstrument, selectedPeriod, OfferSide.BID, 3);
 
         boolean goLong = long_bool == 1;
         boolean goShort = short_bool == 1;
+        
+       
+        
         
         if(adx_condition == 1)
         {
@@ -293,7 +299,7 @@ public class FractalScalpingStrategy implements IStrategy {
                      sl = price - instrument.getPipValue() * stopLossPips;
                  }
 
-                 double tp = price + (price - sl);
+                 double tp = price + (price - sl) * 2;
                  if(takeProfitPips > 0)
                  {
                      tp = price + instrument.getPipValue() * takeProfitPips;
@@ -304,10 +310,10 @@ public class FractalScalpingStrategy implements IStrategy {
                  double howMuchCanIRisk = equity * risk_profile / 100;
                  double singleMicroLotsRisk = risk * 1000 / leverage;                 
                  int howManyMicroLots = (int)(singleMicroLotsRisk / howMuchCanIRisk);
-                 double quantity = (double)howManyMicroLots / 100.0;     
-                 
+                 //double quantity = (double)howManyMicroLots / 100.0;     
+                 double quantity = getLot(price,sl);
                  long gtt = lastTick.getTime() + period.getInterval() * candlesToWait; //withdraw after 30 secs
-                 IOrder order = engine.submitOrder("BuyStopOrder", instrument, IEngine.OrderCommand.BUYSTOP, 0.02, price, 20, sl, tp, gtt, "BUY");
+                 IOrder order = engine.submitOrder("BuyStopOrder", instrument, IEngine.OrderCommand.BUYSTOP, quantity, price, 20, sl, tp, gtt, "BUY");
                  
                   console.getOut().println("BuyStopOrder - Price: " + price + " SL: " + sl + " TP: " + tp);
             
@@ -333,7 +339,7 @@ public class FractalScalpingStrategy implements IStrategy {
                      sl = price + instrument.getPipValue() * stopLossPips;
                  }
                  
-                 double tp = price + (price - sl);
+                 double tp = price + (price - sl) * 2;
                  if(takeProfitPips > 0)
                  {
                      tp = price - instrument.getPipValue() * takeProfitPips;
@@ -344,11 +350,14 @@ public class FractalScalpingStrategy implements IStrategy {
                  double howMuchCanIRisk = equity * risk_profile / 100;
                  double singleMicroLotsRisk = risk * 1000 / leverage;                 
                  int howManyMicroLots = (int)(singleMicroLotsRisk / howMuchCanIRisk);
-                 double quantity = (double)howManyMicroLots / 100.0;     
+                 //double quantity = (double)howManyMicroLots / 100.0;     
+
+                 double quantity = getLot(price,sl);
                  
+                                                   
                  //double tp = price - instrument.getPipValue() * takeProfitPips;
                  long gtt = lastTick.getTime() + period.getInterval() * candlesToWait; //withdraw after 30 secs
-                 IOrder order = engine.submitOrder("SellStopOrder", instrument, IEngine.OrderCommand.SELLSTOP, 0.02, price, 20, sl, tp, gtt, "SELL"); 
+                 IOrder order = engine.submitOrder("SellStopOrder", instrument, IEngine.OrderCommand.SELLSTOP, quantity, price, 20, sl, tp, gtt, "SELL"); 
 
                   console.getOut().println("SellStopOrder - Price: " + price + " SL: " + sl + " TP: " + tp);
         
@@ -359,4 +368,29 @@ public class FractalScalpingStrategy implements IStrategy {
                
         
     }
+    
+    private double getLot(double price, double stoploss) throws JFException
+    {
+        double lotSize = 0;
+
+        double diff = price > stoploss ? price - stoploss : stoploss - price;
+
+        equity = context.getAccount().getEquity();
+        
+        double howCanIRiskPerTransaction = equity * risk_profile / 100d;
+
+
+        lotSize = howCanIRiskPerTransaction / diff;
+
+        lotSize /= 1000000d;                    // in millions
+        return roundLot(lotSize);
+    }
+
+    private double roundLot(double lot)
+    {   
+        lot = (int)(lot * 1000) / (1000d);      // 1000 units min.
+        return lot;
+    }        
+    
+    
 }
