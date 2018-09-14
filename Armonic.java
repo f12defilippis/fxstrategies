@@ -27,13 +27,21 @@ public class Armonic implements IStrategy {
     @Configurable("maxPeriod:")
     public int maxPeriod = 100;
 
+    @Configurable("risk_profile:")
+    public double risk_profile = 1d;
+
+    @Configurable("rsi_condition:")
+    public int rsi_condition = 1;
 
 
     private boolean lowCross = false;
     private boolean upperCross = false;
 
     private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd_HHmmss_SSS");
-    
+
+    double equity = 0.0;    
+    double howCanIRiskPerTransaction = 0.0;    
+    double leverage = 0.0;    
     
     private double[] threshold_min = new double[Instrument.values().length];
     private double[] threshold_max = new double[Instrument.values().length];
@@ -46,6 +54,16 @@ public class Armonic implements IStrategy {
         this.context = context;
         this.indicators = context.getIndicators();
         this.userInterface = context.getUserInterface();
+        
+        
+        equity = context.getAccount().getBaseEquity();
+        
+        howCanIRiskPerTransaction = equity * risk_profile / 100d;
+        
+        leverage = context.getAccount().getLeverage();
+        
+        console.getOut().println("Started - Equity: " + equity + " Lev: " + leverage + " Risk: " + howCanIRiskPerTransaction);
+        
     }
 
     public void onAccount(IAccount account) throws JFException {
@@ -87,7 +105,8 @@ public class Armonic implements IStrategy {
             }
         }            
                 
-                                                
+        double rsi = indicators.rsi(instrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 14, 0);        
+                                                 
                                 
         //0.5,0.618,0.382,0.999,0.886,0.999
         //abax_min,abax_max,cbab_min,cbab_max,adax_min,adax_max
@@ -101,16 +120,16 @@ public class Armonic implements IStrategy {
         double adax_max = 0.999;
         
         // Gartley Bullish
-        checkBullish(instrument, period, askBar, bidBar, abax_min, abax_max, cbab_min, cbab_max, adax_min, adax_max, "GartleyBuy_" + instrument.getName().replace("/",""));   
+        checkBullish(instrument, period, askBar, bidBar, abax_min, abax_max, cbab_min, cbab_max, adax_min, adax_max, "GartleyBuy_" + instrument.getName().replace("/",""),rsi);   
         
         // Bat Bullish
-        checkBullish(instrument, period, askBar, bidBar, 0.5, 0.618, 0.382, 0.999, 0.886, 0.999, "BatBuy_" + instrument.getName().replace("/",""));   
+        checkBullish(instrument, period, askBar, bidBar, 0.5, 0.618, 0.382, 0.999, 0.886, 0.999, "BatBuy_" + instrument.getName().replace("/",""),rsi);   
 
         // Gartley Bullish
-        checkBearish(instrument, period, askBar, bidBar, abax_min, abax_max, cbab_min, cbab_max, adax_min, adax_max, "GartleySell_" + instrument.getName().replace("/",""));   
+        checkBearish(instrument, period, askBar, bidBar, abax_min, abax_max, cbab_min, cbab_max, adax_min, adax_max, "GartleySell_" + instrument.getName().replace("/",""),rsi);   
         
         // Bat Bullish
-        checkBearish(instrument, period, askBar, bidBar, 0.5, 0.618, 0.382, 0.999, 0.886, 0.999, "BatSell_" + instrument.getName().replace("/",""));   
+        checkBearish(instrument, period, askBar, bidBar, 0.5, 0.618, 0.382, 0.999, 0.886, 0.999, "BatSell_" + instrument.getName().replace("/",""),rsi);   
 //        checkBearish(instrument, period, askBar, bidBar, 0.1, 0.618, 0.182, 0.999, 0.186, 0.999, "BatSell");   
        
               
@@ -119,7 +138,7 @@ public class Armonic implements IStrategy {
     }
     
     
-    private void checkBullish(Instrument instrument, Period period, IBar askBar, IBar bidBar, double abax_min, double abax_max, double cbab_min, double cbab_max, double adax_min, double adax_max, String patternName) throws JFException 
+    private void checkBullish(Instrument instrument, Period period, IBar askBar, IBar bidBar, double abax_min, double abax_max, double cbab_min, double cbab_max, double adax_min, double adax_max, String patternName, double rsi) throws JFException 
     {
 
       boolean d_found = false;
@@ -233,7 +252,7 @@ public class Armonic implements IStrategy {
                                             d_found = d_found && isMin(instrument,0,c_index,bidBar);
                                         }
                                         
-                                        if(d_found)
+                                        if(d_found && (rsi_condition == 1 ? rsi < 30 : true))
                                         {
                                            // console.getOut().println(patternName + "PATTERN FOUND: " + DATE_FORMAT.format(bidBar.getTime()) + 
                                             //"C Found: " + DATE_FORMAT.format(c_bar.getTime()) + "B Found: " + DATE_FORMAT.format(b_bar.getTime()) + " A Found: " + DATE_FORMAT.format(a_bar.getTime()) + " X Found: " + DATE_FORMAT.format(x_bar.getTime()));                                            
@@ -256,11 +275,17 @@ public class Armonic implements IStrategy {
                                             double takeProfit = a_bar.getHigh() - instrument.getPipValue() * tpFactor;
                                             double stopLoss = a_bar.getHigh() - instrument.getPipValue() * slFactor;
                                             double entryPrice = a_bar.getHigh() - instrument.getPipValue() * entryFactor;
-                                                                                    
-                                                                                                                
-                                            engine.submitOrder(patternName, instrument, IEngine.OrderCommand.BUYSTOP, 0.1, entryPrice, 0, stopLoss, takeProfit, 0, "");                                                                                       
                                             
-                                            console.getOut().println("Order Submitted - " + patternName + " PRICE: " + bidBar.getClose() + " EP: " + entryPrice + " SL: " + stopLoss + " TP: " + takeProfit + " Exit: " + d_threshold_min);
+                                             double piprisk = (entryPrice-stopLoss) / instrument.getPipValue();
+                                            double stdLotPipValue = 10;
+                                            
+ //                                           double quantity = (double)(Math.round(howCanIRiskPerTransaction / (piprisk * stdLotPipValue) * 100000d)) / 100000d;
+                                            double quantity = getLot(entryPrice,stopLoss);
+                                                                                  
+                                                                                                                
+                                            engine.submitOrder(patternName, instrument, IEngine.OrderCommand.BUYSTOP, quantity, entryPrice, 0, stopLoss, takeProfit, 0, "");                                                                                       
+                                            
+                                            console.getOut().println("Order Submitted - " + patternName + " Qty: " + quantity + " Piprisk: " + piprisk + " PRICE: " + bidBar.getClose() + " EP: " + entryPrice + " SL: " + stopLoss + " TP: " + takeProfit + " Exit: " + d_threshold_min);
                                                                                                                                                                                                 
                                             threshold_min[instrument.ordinal()] = d_threshold_min;                                                                                                                                                                                                                                                                                                        
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
@@ -295,7 +320,7 @@ public class Armonic implements IStrategy {
     
     
     
-    private void checkBearish(Instrument instrument, Period period, IBar askBar, IBar bidBar, double abax_min, double abax_max, double cbab_min, double cbab_max, double adax_min, double adax_max, String patternName) throws JFException 
+    private void checkBearish(Instrument instrument, Period period, IBar askBar, IBar bidBar, double abax_min, double abax_max, double cbab_min, double cbab_max, double adax_min, double adax_max, String patternName, double rsi) throws JFException 
     {
 
       boolean d_found = false;
@@ -409,7 +434,7 @@ public class Armonic implements IStrategy {
                                             d_found = d_found && isMax(instrument,0,c_index,bidBar);
                                         }
                                         
-                                        if(d_found)
+                                        if(d_found && (rsi_condition == 1 ? rsi > 70 : true))
                                         {
                                           //  console.getOut().println(patternName + "PATTERN FOUND: " + DATE_FORMAT.format(bidBar.getTime()) + 
                                           //  "C Found: " + DATE_FORMAT.format(c_bar.getTime()) + "B Found: " + DATE_FORMAT.format(b_bar.getTime()) + " A Found: " + DATE_FORMAT.format(a_bar.getTime()) + " X Found: " + DATE_FORMAT.format(x_bar.getTime()));                                            
@@ -432,11 +457,17 @@ public class Armonic implements IStrategy {
                                             double takeProfit = a_bar.getLow() + instrument.getPipValue() * tpFactor;
                                             double stopLoss = a_bar.getLow() + instrument.getPipValue() * slFactor;
                                             double entryPrice = a_bar.getLow() + instrument.getPipValue() * entryFactor;
+
+                                            double piprisk = (stopLoss - entryPrice) / instrument.getPipValue();
+                                            double stdLotPipValue = 10d;
+                                            
+//                                            double quantity = (double)(Math.round(howCanIRiskPerTransaction / (piprisk * stdLotPipValue) * 100000d)) / 100000d;
+                                            double quantity = getLot(entryPrice,stopLoss);
                                                                                     
                                                                                                                 
-                                            engine.submitOrder(patternName, instrument, IEngine.OrderCommand.SELLSTOP, 0.1, entryPrice, 0, stopLoss, takeProfit, 0, "");                                                                                       
+                                            engine.submitOrder(patternName, instrument, IEngine.OrderCommand.SELLSTOP, quantity, entryPrice, 0, stopLoss, takeProfit, 0, "");                                                                                       
                                             
-                                            console.getOut().println("Order Submitted - " + patternName + "  PRICE: " + bidBar.getHigh() + " EP: " + entryPrice + " SL: " + stopLoss + " TP: " + takeProfit + " Exit: " + d_threshold_max);
+                                            console.getOut().println("Order Submitted - " + patternName + " Qty: " + quantity + " PipRisk: " + piprisk + " PRICE: " + bidBar.getHigh() + " EP: " + entryPrice + " SL: " + stopLoss + " TP: " + takeProfit + " Exit: " + d_threshold_max);
                                                                                                                                                                                                 
                                             threshold_max[instrument.ordinal()] = d_threshold_max;                                                                                                                                                                                                                                                                                                        
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
@@ -468,7 +499,25 @@ public class Armonic implements IStrategy {
                                                                         
     }
     
-    
+    private double getLot(double price, double stoploss) throws JFException
+    {
+        double lotSize = 0;
+
+        double diff = price > stoploss ? price - stoploss : stoploss - price;
+
+
+
+        lotSize = howCanIRiskPerTransaction / diff;
+
+        lotSize /= 1000000d;                    // in millions
+        return roundLot(lotSize);
+    }
+
+    private double roundLot(double lot)
+    {   
+        lot = (int)(lot * 1000) / (1000d);      // 1000 units min.
+        return lot;
+    }    
     
     
     private boolean isMin(Instrument instrument, int indexFrom, int indexTo, IBar barCheck) throws JFException 
