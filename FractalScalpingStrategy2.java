@@ -1,9 +1,11 @@
 package jforex;
 
 import com.dukascopy.api.*;
+import java.text.DateFormat;
 import java.util.*;
+import java.text.SimpleDateFormat;
 
-public class FractalScalpingStrategy2 implements IStrategy {
+public class FractalScalpingStrategy implements IStrategy {
     private IEngine engine;
     private IConsole console;
     private IHistory history;
@@ -14,7 +16,9 @@ public class FractalScalpingStrategy2 implements IStrategy {
     @Configurable("selectedInstrument:")
     public Instrument selectedInstrument = Instrument.EURUSD;
     @Configurable("selectedPeriod:")
-    public Period selectedPeriod = Period.FIVE_MINS;
+    public Period selectedPeriod = Period.ONE_HOUR;
+    @Configurable("selectedSlowPeriod:")
+    public Period selectedSlowPeriod = Period.DAILY;
     //@Configurable("equity:")
     public double equity = 5000;
     @Configurable("risk_profile:")
@@ -28,7 +32,7 @@ public class FractalScalpingStrategy2 implements IStrategy {
     @Configurable("stopLossPips:")
     public int stopLossPips = 0;
     @Configurable("takeProfitPips:")
-    public int takeProfitPips = 0;    
+    public int takeProfitPips = 20;    
     //@Configurable("candlesToWait:")
     public int candlesToWait = 1;    
     //@Configurable("rsilow_min:")
@@ -68,7 +72,11 @@ public class FractalScalpingStrategy2 implements IStrategy {
     @Configurable("candlestick_condition:")
     public int candlestick_condition = 0;       
    
+    String sentiment = "NEUTRAL";   
     
+    private static final DateFormat DATE_FORMAT = new SimpleDateFormat("yyyyMMdd_HHmmss"); 
+    
+            
     public void onStart(IContext context) throws JFException {
         this.engine = context.getEngine();
         this.console = context.getConsole();
@@ -94,9 +102,32 @@ public class FractalScalpingStrategy2 implements IStrategy {
     
     public void onBar(Instrument instrument, Period period, IBar askBar, IBar bidBar) throws JFException {
         
-        if (!instrument.equals(selectedInstrument) || !period.equals(selectedPeriod)) {
+        if (!instrument.equals(selectedInstrument) || !(period.equals(selectedPeriod)||period.equals(selectedSlowPeriod))) {
             return;
         }
+
+        if(period.equals(selectedSlowPeriod))
+        {
+                double ema8 = indicators.ema(selectedInstrument, selectedSlowPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 8, 0);   
+                double ema34 = indicators.ema(selectedInstrument, selectedSlowPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 34, 0);
+             
+                if(ema8 > ema34)
+                    sentiment = "BULLISH";
+                else
+                    sentiment = "BEARISH";
+                    
+                for (IOrder order : engine.getOrders(selectedInstrument)) {
+                    if ((order.getState() == IOrder.State.OPENED ||order.getState() == IOrder.State.FILLED)  && order.isLong() && sentiment.equals("BEARISH")) {
+                        order.close();
+                    }else if((order.getState() == IOrder.State.OPENED ||order.getState() == IOrder.State.FILLED)  && !order.isLong() && sentiment.equals("BULLISH")){
+                        order.close();
+                    }
+                }                      
+                            
+        }
+
+
+
 
         long time = bidBar.getTime();
         
@@ -139,8 +170,8 @@ public class FractalScalpingStrategy2 implements IStrategy {
         IBar bar_y = history.getBar(selectedInstrument, selectedPeriod, OfferSide.BID, 2);
         IBar bar_2y = history.getBar(selectedInstrument, selectedPeriod, OfferSide.BID, 3);
 
-        boolean goLong = long_bool == 1;
-        boolean goShort = short_bool == 1;
+        boolean goLong = long_bool == 1 && sentiment.equals("BULLISH");
+        boolean goShort = short_bool == 1 && sentiment.equals("BEARISH");
         
        
         
@@ -303,9 +334,9 @@ public class FractalScalpingStrategy2 implements IStrategy {
                  if(takeProfitPips > 0)
                  {
                      tp = price + instrument.getPipValue() * takeProfitPips;
-                     double tp2 = price + (price - sl) * 0.5;
-                     if(tp2 > tp)
-                         tp = tp2;
+                     //double tp2 = price + (price - sl) * 0.5;
+                     //if(tp2 > tp)
+                     //    tp = tp2;
                  }
                  
                  
@@ -320,7 +351,7 @@ public class FractalScalpingStrategy2 implements IStrategy {
                  //double quantity = (double)howManyMicroLots / 100.0;     
                  double quantity = getLot(price,sl);
                  long gtt = lastTick.getTime() + period.getInterval() * candlesToWait; //withdraw after 30 secs
-                 IOrder order = engine.submitOrder("BuyStopOrder", instrument, IEngine.OrderCommand.BUYSTOP, quantity, price, 20, sl, tp, gtt, "BUY");
+                 IOrder order = engine.submitOrder(getLabel(lastTick.getTime()), instrument, IEngine.OrderCommand.BUYSTOP, quantity, price, 20, sl, tp, gtt, "BUY");
                  
                   console.getOut().println("BuyStopOrder - Price: " + price + " SL: " + sl + " TP: " + tp);
             
@@ -348,9 +379,9 @@ public class FractalScalpingStrategy2 implements IStrategy {
                  if(takeProfitPips > 0)
                  {
                      tp = price - instrument.getPipValue() * takeProfitPips;
-                     double tp2 = price - (sl - price) * 0.5;
-                     if(tp2 < tp)
-                         tp = tp2;
+                     //double tp2 = price - (sl - price) * 0.5;
+                     //if(tp2 < tp)
+                     //    tp = tp2;
                  }
                 
              
@@ -368,7 +399,7 @@ public class FractalScalpingStrategy2 implements IStrategy {
                                                    
                  //double tp = price - instrument.getPipValue() * takeProfitPips;
                  long gtt = lastTick.getTime() + period.getInterval() * candlesToWait; //withdraw after 30 secs
-                 IOrder order = engine.submitOrder("SellStopOrder", instrument, IEngine.OrderCommand.SELLSTOP, quantity, price, 20, sl, tp, gtt, "SELL"); 
+                 IOrder order = engine.submitOrder(getLabel(lastTick.getTime()), instrument, IEngine.OrderCommand.SELLSTOP, quantity, price, 20, sl, tp, gtt, "SELL"); 
 
                   console.getOut().println("SellStopOrder - Price: " + price + " SL: " + sl + " TP: " + tp + " QTY: " + quantity);
         
@@ -411,4 +442,20 @@ public class FractalScalpingStrategy2 implements IStrategy {
         long tmp = Math.round(value);
         return (double) tmp / factor;
     }
+    
+
+    private String getLabel(long time) {
+        return "IVF" + DATE_FORMAT.format(time) + generateRandom(10000) + generateRandom(10000);
+    }
+
+    private String generateRandom(int n) {
+        int randomNumber = (int) (Math.random() * n);
+        String answer = "" + randomNumber;
+        if (answer.length() > 3) {
+            answer = answer.substring(0, 4);
+        }
+        return answer;
+    }        
+    
+    
 }
