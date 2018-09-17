@@ -22,11 +22,13 @@ public class FractalScalpingStrategy2 implements IStrategy {
     //@Configurable("leverage:")
     public double leverage = 30;
     @Configurable("entryPips:")
-    public int entryPips = 5;
+    public int entryPips = 0;
+    @Configurable("atrFactor:")
+    public int atrFactor = 0;
     @Configurable("stopLossPips:")
     public int stopLossPips = 0;
     @Configurable("takeProfitPips:")
-    public int takeProfitPips = 20;    
+    public int takeProfitPips = 0;    
     //@Configurable("candlesToWait:")
     public int candlesToWait = 1;    
     //@Configurable("rsilow_min:")
@@ -46,7 +48,7 @@ public class FractalScalpingStrategy2 implements IStrategy {
     @Configurable("fractal_condition:")
     public int fractal_condition = 1;       
     @Configurable("rsi_condition:")
-    public int rsi_condition = 0;  
+    public int rsi_condition = 2;  
     @Configurable("macd_condition:")
     public int macd_condition = 0;       
     @Configurable("candle_condition:")
@@ -113,6 +115,7 @@ public class FractalScalpingStrategy2 implements IStrategy {
         double ema34_y = indicators.ema(selectedInstrument, selectedPeriod, OfferSide.BID, IIndicators.AppliedPrice.CLOSE, 34, 1);
 
         double adx = indicators.adx(selectedInstrument, selectedPeriod, OfferSide.BID, 14, 1);
+        double atr = indicators.atr(selectedInstrument, selectedPeriod, OfferSide.BID, 14, 1);
 
 
         double sar = indicators.sar(selectedInstrument, selectedPeriod, OfferSide.BID, 0.02, 0.2, 0);
@@ -286,26 +289,30 @@ public class FractalScalpingStrategy2 implements IStrategy {
                 }            
                  
                  ITick lastTick = history.getLastTick(instrument);
-                 double price = lastTick.getAsk();
+                 double price = lastTick.getAsk() + instrument.getPipValue() * entryPips;
                  double sl = fractals[1];
-                 
-/*                 if(hammer_condition == 1)
-                 {
-                     sl = bar_y.getLow();
-                 }
-  */               
+                 //double tp = price + (price - sl);
+                 //double sl = bollingerMiddleValue - (atr * atrFactor);
+                 double tp = bollingerUpperValue + (atr * atrFactor);
+  
                  if(stopLossPips > 0)
                  {
                      sl = price - instrument.getPipValue() * stopLossPips;
                  }
 
-                 double tp = price + (price - sl) * 2;
                  if(takeProfitPips > 0)
                  {
                      tp = price + instrument.getPipValue() * takeProfitPips;
+                     double tp2 = price + (price - sl) * 0.5;
+                     if(tp2 > tp)
+                         tp = tp2;
                  }
                  
                  
+                 
+                 sl = round(sl,5);
+                 tp = round(tp,5);  
+                                               
                  double risk = price - sl;
                  double howMuchCanIRisk = equity * risk_profile / 100;
                  double singleMicroLotsRisk = risk * 1000 / leverage;                 
@@ -327,24 +334,28 @@ public class FractalScalpingStrategy2 implements IStrategy {
                 }            
             
                  ITick lastTick = history.getLastTick(instrument);
-                 double price = lastTick.getAsk();
+                 double price = lastTick.getAsk() - instrument.getPipValue() * entryPips;
                  double sl = fractals[0];
-    /*             if(hammer_condition == 1)
-                 {
-                     sl = bar_y.getHigh();
-                 }
-      */           
+                 //double sl = bollingerMiddleValue + (atr * atrFactor);
+                 double tp = bollingerLowerValue - (atr * atrFactor);
+ 
                  if(stopLossPips > 0)
                  {
                      sl = price + instrument.getPipValue() * stopLossPips;
                  }
                  
-                 double tp = price + (price - sl) * 2;
+                 //double tp = price + (price - sl);
                  if(takeProfitPips > 0)
                  {
                      tp = price - instrument.getPipValue() * takeProfitPips;
+                     double tp2 = price - (sl - price) * 0.5;
+                     if(tp2 < tp)
+                         tp = tp2;
                  }
-                 
+                
+             
+                 sl = round(sl,5);
+                 tp = round(tp,5);                 
                  
                  double risk = price - sl;
                  double howMuchCanIRisk = equity * risk_profile / 100;
@@ -359,7 +370,7 @@ public class FractalScalpingStrategy2 implements IStrategy {
                  long gtt = lastTick.getTime() + period.getInterval() * candlesToWait; //withdraw after 30 secs
                  IOrder order = engine.submitOrder("SellStopOrder", instrument, IEngine.OrderCommand.SELLSTOP, quantity, price, 20, sl, tp, gtt, "SELL"); 
 
-                  console.getOut().println("SellStopOrder - Price: " + price + " SL: " + sl + " TP: " + tp);
+                  console.getOut().println("SellStopOrder - Price: " + price + " SL: " + sl + " TP: " + tp + " QTY: " + quantity);
         
         }
         
@@ -392,5 +403,12 @@ public class FractalScalpingStrategy2 implements IStrategy {
         return lot;
     }        
     
+    private double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
     
+        long factor = (long) Math.pow(10, places);
+        value = value * factor;
+        long tmp = Math.round(value);
+        return (double) tmp / factor;
+    }
 }

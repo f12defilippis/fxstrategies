@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE preferences SYSTEM "http://java.sun.com/dtd/preferences.dtd">
+<preferences EXTERNAL_XML_VERSION="1.0">
+  <root type="user">
+    <map/>
+    <node name="strat_pref_node">
+      <map/>
+      <node name="presets">
+        <map/>
+        <node name="preset@Custom Preset">
+          <map>
+            <entry key="name" value="Custom Preset"/>
+            <entry key="id" value="Custom Preset"/>
+          </map>
+          <node name="parameter@adx_condition">
+            <map>
+              <entry key="id" value="adx_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="1"/>
+            </map>
+          </node>
+          <node name="parameter@atrFactor">
+            <map>
+              <entry key="id" value="atrFactor"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="2"/>
+            </map>
+          </node>
+          <node name="parameter@bollinger_condition">
+            <map>
+              <entry key="id" value="bollinger_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="1"/>
+            </map>
+          </node>
+          <node name="parameter@candle_condition">
+            <map>
+              <entry key="id" value="candle_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="1"/>
+            </map>
+          </node>
+          <node name="parameter@candlestick_condition">
+            <map>
+              <entry key="id" value="candlestick_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="0"/>
+            </map>
+          </node>
+          <node name="parameter@ema_condition">
+            <map>
+              <entry key="id" value="ema_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="1"/>
+            </map>
+          </node>
+          <node name="parameter@entryPips">
+            <map>
+              <entry key="id" value="entryPips"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="2"/>
+            </map>
+          </node>
+          <node name="parameter@fractal_condition">
+            <map>
+              <entry key="id" value="fractal_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="1"/>
+            </map>
+          </node>
+          <node name="parameter@hammer_condition">
+            <map>
+              <entry key="id" value="hammer_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="0"/>
+            </map>
+          </node>
+          <node name="parameter@macd_condition">
+            <map>
+              <entry key="id" value="macd_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="0"/>
+            </map>
+          </node>
+          <node name="parameter@price_condition">
+            <map>
+              <entry key="id" value="price_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="0"/>
+            </map>
+          </node>
+          <node name="parameter@risk_profile">
+            <map>
+              <entry key="id" value="risk_profile"/>
+              <entry key="type" value="double"/>
+              <entry key="value" value="1.0"/>
+            </map>
+          </node>
+          <node name="parameter@rsi_condition">
+            <map>
+              <entry key="id" value="rsi_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="2"/>
+            </map>
+          </node>
+          <node name="parameter@sar_condition">
+            <map>
+              <entry key="id" value="sar_condition"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="1"/>
+            </map>
+          </node>
+          <node name="parameter@selectedInstrument">
+            <map>
+              <entry key="id" value="selectedInstrument"/>
+              <entry key="type" value="com.dukascopy.api.Instrument"/>
+              <entry key="value" value="EUR/USD"/>
+            </map>
+          </node>
+          <node name="parameter@selectedPeriod">
+            <map>
+              <entry key="id" value="selectedPeriod"/>
+              <entry key="type" value="com.dukascopy.api.Period"/>
+              <entry key="value" value="Hourly"/>
+            </map>
+          </node>
+          <node name="parameter@stopLossPips">
+            <map>
+              <entry key="id" value="stopLossPips"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="0"/>
+            </map>
+          </node>
+          <node name="parameter@takeProfitPips">
+            <map>
+              <entry key="id" value="takeProfitPips"/>
+              <entry key="type" value="int"/>
+              <entry key="value" value="0"/>
+            </map>
+          </node>
+        </node>
+      </node>
+    </node>
+  </root>
+</preferences>
